@@ -1,3 +1,9 @@
+# Version=0.0.1
+#
+# Dependencies
+# printer-shared
+#
+
 INCLUDEPATH  += $$PWD\
                 $$PWD/../../defines/defines\
                 $$PWD/../../defines/define-types

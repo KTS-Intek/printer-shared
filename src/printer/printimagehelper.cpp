@@ -11,11 +11,9 @@
 #include <QUrl>
 #include <QPrinter>
 #include <QPrinterInfo>
-
 #include <QDebug>
 #include <QThread>
 
-//#include "src/printer/qrcodegenerator.h"
 
 
 //------------------------------------------------------------------------------------------------

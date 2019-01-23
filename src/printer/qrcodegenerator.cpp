@@ -1,5 +1,4 @@
 #include "qrcodegenerator.h"
-#include "qrcodegenerator.h"
 #include <QPainter>
 #include <QDebug>
 

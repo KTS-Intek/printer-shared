@@ -1,4 +1,6 @@
 #include "qrdevicedecoder.h"
+
+///[!] printer-shared
 #include "src/printer/qrcodegeneratortypes.h"
 
 QrDevParams QrDeviceDecoder::getDeviceParamFromQR(const QString &line, const bool &onlyDevType)

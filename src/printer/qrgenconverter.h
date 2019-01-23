@@ -2,7 +2,11 @@
 #define QRGENCONVERTER_H
 
 #include <QStringList>
+
+
+///[!] printer-shared
 #include "qrcodegeneratortypes.h"
+
 
 class QrGenConverter
 {
