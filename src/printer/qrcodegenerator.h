@@ -5,6 +5,7 @@
 #include <QPixmap>
 #include <QSize>
 #include <QStringList>
+//#include <QZXing.h>
 #include <QZXing.h>
 
 class QrCodeGenerator

@@ -94,7 +94,7 @@ QString QrCodeGenerator::decodeImage(QZXing &decoder, const QImage &src, const b
 {
     const QString s = decoder.decodeImage(src, -1, -1, !useFastTransformation );
     if(s.isEmpty())
-        mess = decoder.getLastError();
+        mess = "no qr";// decoder.getLastError();
     return s;
 }
 
