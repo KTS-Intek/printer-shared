@@ -15,6 +15,8 @@
 #include <QThread>
 
 
+///[!] type-converter
+#include "src/base/valuevalidator.h"
 
 //------------------------------------------------------------------------------------------------
 
@@ -71,11 +73,27 @@ QStringList PrintImageHelper::getSupportedDateMask()
 
 QPixmap PrintImageHelper::getTemplateImage(const QString defaultPath)
 {
-    QFileInfo fi(defaultPath);
-    if(fi.exists())
-        return QPixmap(defaultPath);
+    return getTemplateImageExt("", defaultPath);
+}
 
-    return QPixmap(":/katynko/godexprint/label.png");
+//------------------------------------------------------------------------------------------------
+
+QPixmap PrintImageHelper::getTemplateImageExt(const QString &path2img, const QString &defaultPath)
+{
+    if(!path2img.isEmpty()){
+        QFileInfo fi(path2img);
+        if(fi.exists() && fi.isReadable())
+            return QPixmap(path2img);
+    }
+
+    if(!defaultPath.isEmpty()){
+        QFileInfo fi(defaultPath);
+        if(fi.exists() && fi.isReadable())
+            return QPixmap(defaultPath);
+    }
+    return QPixmap(":/katynko/label-print-def.png");
+
+
 }
 
 //------------------------------------------------------------------------------------------------
@@ -88,7 +106,9 @@ QString PrintImageHelper::replaceKeysInText(QString plainText, QString dateMask,
     return replaceKeysInText(plainText, dateMask, map);
 }
 
-QString PrintImageHelper::replaceKeysInText(QString plainText, QString dateMask, const QVariantMap &about)
+//------------------------------------------------------------------------------------------------
+
+QString PrintImageHelper::replaceKeysInText(QString plainText, QString dateMask, QVariantMap about)
 {
     /*
      * keys
@@ -96,12 +116,21 @@ QString PrintImageHelper::replaceKeysInText(QString plainText, QString dateMask,
      * $eui64
      * $ni
      * $model
+     * $lcuni - it generates from eui64
      */
 
     if(plainText.contains("$date"))
         plainText.replace("$date", QDate::currentDate().toString(dateMask));
 
-    const QStringList l = QString("$ni $eui64 $model").split(" ", QString::SkipEmptyParts);
+    const QStringList l = QString("$ni $eui64 $model $lcuni").split(" ", QString::SkipEmptyParts);
+
+    if(!about.contains("$lcuni")){
+        bool ok;
+        const quint64 lcuni = about.value("$eui64").toString().right(8).toULongLong(&ok,16);
+        const QString s = QString::number(lcuni, 16);
+        if(ok && !s.isEmpty())
+            about.insert("$lcuni", s);
+    }
 
     for(int i = 0, imax = l.size(); i < imax; i++){
         if(plainText.contains(l.at(i)) && about.contains(l.at(i)))
@@ -124,13 +153,9 @@ QPixmap PrintImageHelper::rotateImage(const int &rotateDeg, const QPixmap &pm)
     return QPixmap::fromImage(img.transformed(matrix));
 }
 
-//------------------------------------------------------------------------------------------------
-
-QPixmap PrintImageHelper::convertImage(const int &imgFormat, const int &imgConvflags, const QPixmap &pm, const int contrast, const int brightness)
+QImage::Format PrintImageHelper::getImgFormat(const int &imgFormat)
 {
-
     QImage::Format format = QImage::Format_Invalid;
-    Qt::ImageConversionFlags flags ;
 
     switch(imgFormat){
 
@@ -161,18 +186,34 @@ QPixmap PrintImageHelper::convertImage(const int &imgFormat, const int &imgConvf
 
     default: format = QImage::Format_Invalid                ; break;
     }
+    return format;
+}
 
+//------------------------------------------------------------------------------------------------
 
-    if(format == QImage::Format_Invalid)
-        return pm;
-
+Qt::ImageConversionFlags PrintImageHelper::getConversionFlags(const int &imgConvflags)
+{
+    Qt::ImageConversionFlags flags;
     switch(imgConvflags){
     case 1: flags = Qt::ColorOnly   ; break;
     case 2: flags = Qt::MonoOnly    ; break;
 
     default: flags = Qt::AutoColor  ; break;
     }
+    return flags;
+}
 
+//------------------------------------------------------------------------------------------------
+
+QPixmap PrintImageHelper::convertImage(const int &imgFormat, const int &imgConvflags, const QPixmap &pm, const int contrast, const int brightness)
+{
+    const Qt::ImageConversionFlags flags = getConversionFlags(imgConvflags);
+
+    const QImage::Format format = getImgFormat(imgFormat);
+
+
+    if(format == QImage::Format_Invalid)
+        return pm;
 
 //    qDebug() << "img1 " << img.devicePixelRatioF() << img.depth() << img.dotsPerMeterX() << img.dotsPerMeterY() << img.height() << img.heightMM() << img.width() << img.widthMM();
 
@@ -207,11 +248,60 @@ QPixmap PrintImageHelper::convertImage(const int &imgFormat, const int &imgConvf
 
 //------------------------------------------------------------------------------------------------
 
+QVariantMap PrintImageHelper::getMapAboutDev(const QString &euiline, const QString &euilinekeys, const QString &euilineslitsymb)
+{
+    const QStringList l = euiline.split(euilineslitsymb);
+    const QStringList keys = euilinekeys.split(" ", QString::SkipEmptyParts);
+
+    QVariantMap map;
+    for(int i = 0, imax = l.size(), imax2 = keys.size(); i < imax && i < imax2; i++){
+        if(l.at(i).isEmpty())
+            continue;
+        map.insert(keys.at(i), l.at(i));
+    }
+
+    return map;
+}
+
+//------------------------------------------------------------------------------------------------
+
+QPixmap PrintImageHelper::getPixmapWithUserDataExt(const PrintImageHelper::PrintSettCache &printSett, const QString &euiline, const QString &euilinekeys, const QString &euilineslitsymb, const QPixmap &qrimg)
+{
+    const QVariantMap map = getMapAboutDev(euiline, euilinekeys, euilineslitsymb);
+
+    QPixmap background = getTemplateImageExt(printSett.usedefaultimage ? "" : printSett.backgroundimagepath, printSett.defaultimagepath);
+
+    if(printSett.genearateaqrcode && !qrimg.isNull()){//a QR code processing part
+        QPainter painter(&background);
+
+        const Qt::ImageConversionFlags flags = getConversionFlags(printSett.colorIndx);
+        const QImage::Format format = getImgFormat(printSett.formatIndx);
+
+        QImage img = qrimg.toImage().convertToFormat(format, flags);
+
+        img = makeBrightness(img, printSett.brightness);
+        img = makeContrast(img, printSett.contrast);
+
+        if(printSett.enqrcustomposition)
+            painter.drawImage(QRect(printSett.qrleftmarginpx, printSett.qrtopmarginpx, printSett.qrwidthpx, printSett.qrheightpx), img);
+        else
+            painter.drawImage(0, 0, img);
+    }
+
+    return getPixmapWithUserData(printSett.userData, printSett.dateMask, printSett.fontPpt, printSett.textTopMargin, printSett.textLeftMargin, map, 0.0, background);
+
+}
+
+//------------------------------------------------------------------------------------------------
+
 QPixmap PrintImageHelper::getPixmapWithUserData(const QString &userString, const QString &userDateMask, const int &userFontPpt, const int &topMarginPx, const int &leftMarginPx, const QString eui64, const QString defaultPath)
 {
 
     QVariantMap map;
-    map.insert("$eui64", eui64);
+    map.insert("$eui64", eui64);//it is an old method, use getPixmapWithUserDataExt instead
+
+
+
     return getPixmapWithUserData(userString, userDateMask, userFontPpt, topMarginPx, leftMarginPx, map, 0.0, getTemplateImage(defaultPath));
 
 }
@@ -427,26 +517,43 @@ QSizeF PrintImageHelper::getPageSize(const int &w, const int &h, const bool &isP
 PrintImageHelper::PrintSettCache PrintImageHelper::defaultPrintSett()
 {
     PrintSettCache printSett;
+    //Page
     printSett.widthMM           = 25;
-    printSett.heightMM          = 30;
+    printSett.heightMM          = 30;    
     printSett.top               = 0;
-    printSett.right             = 0;
-    printSett.bottom            = 0;
-    printSett.left              = -3;
+    printSett.left              = 0;
     printSett.isPortrait        = false;
     printSett.resolutionDpi     = 300;
-    printSett.userData          = "$date\nNI:$ni";
-    printSett.fontPpt           = 19;
-    printSett.textTopMargin     = 280;
-    printSett.textLeftMargin    = 11;
+    printSett.genearateaqrcode = false;
+
+    //Template
+    //Image
+    printSett.rotateDeg         = 0;
+    printSett.colorIndx         = getSupportedImageColorConv().size() - 1;
+    printSett.formatIndx        = getSupportedImageFormat().size() - 1;
     printSett.contrast          = 90;
     printSett.brightness        = 0;
-    printSett.rotateDeg         = 0;
-    printSett.formatIndx        = getSupportedImageFormat().size() - 1;
-    printSett.colorIndx         = getSupportedImageColorConv().size() - 1;
+    printSett.backgroundimagepath= "";
+    printSett.defaultimagepath  = ":/katynko/label-print-def.png";
+    printSett.usedefaultimage   = true;
+
+    //Text
     printSett.dateMask          = getSupportedDateMask().first();
     printSett.textRotateDeg     = 0;
+    printSett.fontPpt           = 19;
+    printSett.textTopMargin     = 50;
+    printSett.textLeftMargin    = 10;
+    printSett.userData          = "$date\nNI:$ni";
+
+
+
     printSett.qrCorrLetter      = "M";
+    printSett.enqrcustomposition= false;
+    printSett.qrtopmarginpx     = 10;
+    printSett.qrleftmarginpx    = 10;
+    printSett.qrheightpx        = 200;
+    printSett.qrwidthpx         = 200;
+
     return printSett;
 }
 
@@ -459,42 +566,49 @@ PrintImageHelper::PrintSettCache PrintImageHelper::variantMap2printSett(const QV
         return defvals;
 
     PrintSettCache printSett;
+//Page
+    printSett.widthMM               = m.value("widthMM"             , defvals.widthMM           ).toInt() ;
+    printSett.heightMM              = m.value("heightMM"            , defvals.heightMM          ).toInt() ;
+    printSett.resolutionDpi         = m.value("resolutionDpi"       , defvals.resolutionDpi     ).toInt() ;
+    printSett.isPortrait            = m.value("isPortrait"          , defvals.isPortrait        ).toBool();
+    printSett.top                   = m.value("top"                 , defvals.top               ).toInt() ;
+    printSett.left                  = m.value("left"                , defvals.left              ).toInt() ;
+    printSett.genearateaqrcode      = m.value("genearateaqrcode"    , defvals.genearateaqrcode  ).toBool();
 
-    printSett.widthMM = m.value("widthMM", defvals.widthMM).toInt();
-    printSett.heightMM = m.value("heightMM", defvals.heightMM).toInt();
+    //Template
+    //Image
+    printSett.rotateDeg             = m.value("rotateDeg"           , defvals.rotateDeg         ).toInt();
+    printSett.formatIndx            = ValueValidator::getCorrectValueSigned(m.value("formatIndx", defvals.formatIndx).toInt(), PrintImageHelper::getSupportedImageFormat().size(), 0);
+    printSett.colorIndx             = ValueValidator::getCorrectValueSigned(m.value("colorIndx" , defvals.colorIndx ).toInt(), PrintImageHelper::getSupportedImageFormat().size(), 0);
+    printSett.contrast              = m.value("contrast"            , defvals.contrast          ).toInt();
+    printSett.brightness            = m.value("brightness"          , defvals.brightness        ).toInt();
+    printSett.backgroundimagepath   = m.value("backgroundimagepath" , defvals.backgroundimagepath).toString();
+    printSett.defaultimagepath      = m.value("defaultimagepath"    , defvals.defaultimagepath).toString();
+    printSett.usedefaultimage       = m.value("usedefaultimage"     , defvals.usedefaultimage   ).toBool();
 
-    printSett.top = m.value("top", defvals.top).toInt();
-    printSett.right = m.value("right", defvals.right).toInt();
-    printSett.bottom = m.value("bottom", defvals.bottom).toInt();
-    printSett.left = m.value("left", defvals.left).toInt();
 
-    printSett.isPortrait = m.value("isPortrait", defvals.isPortrait).toBool();
+    //Text
+    const QStringList datemasks     = PrintImageHelper::getSupportedDateMask();
+    printSett.dateMask              = datemasks.contains(m.value("dateMask", defvals.dateMask).toString()) ?
+                m.value("dateMask", defvals.dateMask).toString() :
+                datemasks.first();
+    printSett.textRotateDeg         = m.value("textRotateDeg"       , defvals.textRotateDeg     ).toInt();
+    printSett.fontPpt               = m.value("fontPpt"             , defvals.fontPpt           ).toInt();
+    printSett.textTopMargin         = m.value("textTopMargin"       , defvals.textTopMargin     ).toInt();
+    printSett.textLeftMargin        = m.value("textLeftMargin"      , defvals.textLeftMargin    ).toInt();
+    printSett.userData              = m.value("userData"            , defvals.userData          ).toString();
 
-    printSett.resolutionDpi = m.value("resolutionDpi", defvals.resolutionDpi).toInt();
-    printSett.userData = m.value("userData", defvals.userData).toString();
-    printSett.fontPpt = m.value("fontPpt", defvals.fontPpt).toInt();
-    printSett.textTopMargin = m.value("textTopMargin", defvals.textTopMargin).toInt();
-    printSett.textLeftMargin = m.value("textLeftMargin", defvals.textLeftMargin).toInt();
 
-    printSett.contrast = m.value("contrast", defvals.contrast).toInt();
-    printSett.brightness = m.value("brightness", defvals.brightness).toInt();
+//QR Code
+    printSett.qrCorrLetter          = m.value("qrCorrLetter"        , defvals.qrCorrLetter      ).toString();
+    printSett.enqrcustomposition    = m.value("enqrcustomposition"  , defvals.enqrcustomposition).toBool();// ui->groupBox_4->isChecked();
+    printSett.qrtopmarginpx         = m.value("qrtopmarginpx"       , defvals.qrtopmarginpx     ).toInt();//ui->sbQrTopMargin->value();
+    printSett.qrleftmarginpx        = m.value("qrleftmarginpx"      , defvals.qrleftmarginpx    ).toInt();//ui->sbQrLeftMargin->value();
+    printSett.qrheightpx            = m.value("qrheightpx"          , defvals.qrheightpx        ).toInt();//ui->sbQrHeight->value();
+    printSett.qrwidthpx             = m.value("qrwidthpx"           , defvals.qrwidthpx         ).toInt();//ui->sbQrHeight->value();//A QR code is a square
 
-    printSett.rotateDeg = m.value("rotateDeg", defvals.rotateDeg).toInt();
 
-    int indx = m.value("formatIndx", defvals.formatIndx).toInt();
-    printSett.formatIndx  = (indx < 0 || indx >= PrintImageHelper::getSupportedImageFormat().size()) ? PrintImageHelper::getSupportedImageFormat().size() - 1 : indx;
-
-    indx = m.value("colorIndx", defvals.colorIndx).toInt();
-    printSett.colorIndx = (indx < 0 || indx >= PrintImageHelper::getSupportedImageColorConv().size()) ? PrintImageHelper::getSupportedImageColorConv().size() - 1 : indx;
-
-    indx = m.value("dateMask", defvals.dateMask).toInt();
-    printSett.dateMask = PrintImageHelper::getSupportedDateMask().at((indx < 0 || indx >= PrintImageHelper::getSupportedDateMask().size()) ? 0 : indx);
-
-    printSett.textRotateDeg = m.value("textRotateDeg", defvals.textRotateDeg ).toInt();
-
-    printSett.qrCorrLetter = m.value("qrCorrLetter", defvals.qrCorrLetter).toString();
-
-    printSett.path2img = m.value("path2img", defvals.path2img).toString();
+//    printSett.path2img = m.value("path2img", defvals.path2img).toString();
     return printSett;
 
 }
@@ -503,27 +617,47 @@ PrintImageHelper::PrintSettCache PrintImageHelper::variantMap2printSett(const QV
 QVariantMap PrintImageHelper::printSett2variantMap(const PrintImageHelper::PrintSettCache &printSett)
 {
     QVariantMap m;
-    m.insert("widthMM"      , printSett.widthMM     );
-    m.insert("heightMM"     , printSett.heightMM    );
-    m.insert("top"          , printSett.top         );
-    m.insert("right"        , printSett.right       );
-    m.insert("bottom"       , printSett.bottom      );
-    m.insert("left"         , printSett.left        );
-    m.insert("isPortrait"   , printSett.isPortrait  );
-    m.insert("resolutionDpi", printSett.resolutionDpi );
-    m.insert("userData"     , printSett.userData    );
-    m.insert("fontPpt"      , printSett.fontPpt     );
-    m.insert("textTopMargin", printSett.textTopMargin );
-    m.insert("textLeftMargin", printSett.textLeftMargin );
-    m.insert("contrast"     , printSett.contrast    );
-    m.insert("brightness"   , printSett.brightness  );
-    m.insert("rotateDeg"    , printSett.rotateDeg   );
-    m.insert("formatIndx"   , printSett.formatIndx  );
-    m.insert("colorIndx"    , printSett.colorIndx   );
-    m.insert("dateMask"     , printSett.dateMask    );
-    m.insert("textRotateDeg", printSett.textRotateDeg );
-    m.insert("qrCorrLetter" , printSett.qrCorrLetter);
-    m.insert("path2img"     , printSett.path2img    );
+    //Page
+    m.insert("widthMM"              , printSett.widthMM             );
+    m.insert("heightMM"             , printSett.heightMM            );
+    m.insert("top"                  , printSett.top                 );
+    m.insert("left"                 , printSett.left                );
+    m.insert("isPortrait"           , printSett.isPortrait          );
+    m.insert("resolutionDpi"        , printSett.resolutionDpi       );
+    m.insert("genearateaqrcode"     , printSett.genearateaqrcode    );
+
+    //Template
+    //Image
+    m.insert("rotateDeg"            , printSett.rotateDeg           );
+    m.insert("colorIndx"            , printSett.colorIndx           );
+    m.insert("formatIndx"           , printSett.formatIndx          );
+    m.insert("contrast"             , printSett.contrast            );
+    m.insert("brightness"           , printSett.brightness          );
+    m.insert("backgroundimagepath"  , printSett.backgroundimagepath );//  = ui->lePath2imgBackGround->text();
+    m.insert("defaultimagepath"     , printSett.defaultimagepath    );//      = defaultimagepath;// "";
+    m.insert("usedefaultimage"      , printSett.usedefaultimage     );//       = ui->cbxBackGround->isChecked();
+
+    //Text
+    m.insert("dateMask"             , printSett.dateMask            );
+    m.insert("textRotateDeg"        , printSett.textRotateDeg       );
+    m.insert("fontPpt"              , printSett.fontPpt             );
+    m.insert("textTopMargin"        , printSett.textTopMargin       );
+    m.insert("textLeftMargin"       , printSett.textLeftMargin      );
+    m.insert("userData"             , printSett.userData            );
+
+
+    m.insert("qrCorrLetter"         , printSett.qrCorrLetter        );
+    m.insert("enqrcustomposition"   , printSett.enqrcustomposition  );//    = ui->groupBox_4->isChecked();
+    m.insert("qrtopmarginpx"        , printSett.qrtopmarginpx       );//    printSett.qrtopmarginpx         = ui->sbQrTopMargin->value();
+    m.insert("qrleftmarginpx"       , printSett.qrleftmarginpx      );//    printSett.qrleftmarginpx        = ui->sbQrLeftMargin->value();
+    m.insert("qrheightpx"           , printSett.qrheightpx          );//    printSett.qrheightpx            = ui->sbQrHeight->value();
+    m.insert("qrwidthpx"            , printSett.qrwidthpx           );//    printSett.qrwidthpx             = ui->sbQrHeight->value();//A QR code is a square
+
+
+
+
+//    m.insert("path2img"     , printSett.path2img    );
+
     return m;
 }
 

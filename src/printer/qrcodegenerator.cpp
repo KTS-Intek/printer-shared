@@ -110,14 +110,19 @@ QString QrCodeGenerator::decodePixmap(QZXing &decoder, const QPixmap &src, const
     return decodeImage(decoder, src.toImage(), useFastTransformation, mess);
 }
 
+QPixmap QrCodeGenerator::getPagePix(const PrintImageHelper::PrintSettCache &printSett, const QString &s)
+{
+    return getPagePix(printSett.widthMM, printSett.heightMM, printSett.resolutionDpi, printSett.qrCorrLetter, s);
+}
+
 QPixmap QrCodeGenerator::getPagePix(const int &wmm, const int &hmm, const int &dpi, const QString &corrlvl, const QString &s)
 {
-    const int whpxls = qMax(1, (int)((qMin(wmm, hmm) * dpi) / 25.4));
+    const int whpxls = qMax(1, int( qreal(qMin(wmm, hmm) * dpi) / qreal(25.4)));
     const int borders = whpxls * 0.05;
     const int whpxlsbrdrs = whpxls - borders * 2;
 
-    const int wpxls = (wmm * dpi) / 25.4;
-    const int hpxls = (hmm * dpi) / 25.4;
+    const int wpxls = int(qreal(wmm * dpi) / qreal(25.4));
+    const int hpxls = int(qreal(hmm * dpi) / qreal(25.4));
 
 //    const int whpxls = qMin(ui->sbWidth->value(), ui->sbHeight->value()) * dpmm;
 
@@ -129,12 +134,17 @@ QPixmap QrCodeGenerator::getPagePix(const int &wmm, const int &hmm, const int &d
 QPixmap QrCodeGenerator::getPagePixel(const int &borders, const int &whpxlsbrdrs, const int &wpxls, const int &hpxls, const QString &corrlvl, const QString &s)
 {
 
+    return getPagePixel(borders, borders, whpxlsbrdrs, wpxls, hpxls, corrlvl, s);
+}
+
+QPixmap QrCodeGenerator::getPagePixel(const int &left, const int &top, const int &whpxlsbrdrs, const int &wpxls, const int &hpxls, const QString &corrlvl, const QString &s)
+{
     const QPixmap p = encode(s, corrlvl, whpxlsbrdrs, whpxlsbrdrs);//.scaled(wpxls, hpxls, Qt::KeepAspectRatio);
 //    white.swap(p);
 
     QPixmap white = QPixmap(wpxls, hpxls);
     white.fill(QColor(Qt::white));
     QPainter painter(&white);
-    painter.drawPixmap(borders, borders, p);
+    painter.drawPixmap(left, top, p);
     return  white;
 }

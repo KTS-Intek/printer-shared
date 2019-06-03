@@ -8,6 +8,9 @@
 //#include <QZXing.h>
 #include <QZXing.h>
 
+
+#include "printimagehelper.h"
+
 class QrCodeGenerator
 {
 
@@ -42,10 +45,12 @@ public:
 
     static QString decodePixmap(QZXing &decoder, const QPixmap &src, const bool &useFastTransformation, QString &mess);
 
+    static QPixmap getPagePix(const PrintImageHelper::PrintSettCache &printSett, const QString &s);
 
     static QPixmap getPagePix(const int &wmm, const int &hmm, const int &dpi, const QString &corrlvl, const QString &s);
 
     static QPixmap getPagePixel(const int &borders, const int &whpxlsbrdrs, const int &wpxls, const int &hpxls, const QString &corrlvl, const QString &s);
+    static QPixmap getPagePixel(const int &left, const int &top, const int &whpxlsbrdrs, const int &wpxls, const int &hpxls, const QString &corrlvl, const QString &s);
 
 };
 
