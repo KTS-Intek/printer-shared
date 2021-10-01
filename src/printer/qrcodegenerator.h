@@ -37,13 +37,13 @@ public:
 
 
 
-    static QString decodeImage(const QImage &src, const bool &useFastTransformation, QString &mess);
+    static QString decodeImage(const QImage &src, const bool &useFastTransformation, QString &messageStrr);
 
-    static QString decodeImage(QZXing &decoder, const QImage &src, const bool &useFastTransformation, QString &mess);
+    static QString decodeImage(QZXing &decoder, const QImage &src, const bool &useFastTransformation, QString &messageStrr);
 
-    static QString decodePixmap(const QPixmap &src, const bool &useFastTransformation, QString &mess);
+    static QString decodePixmap(const QPixmap &src, const bool &useFastTransformation, QString &messageStrr);
 
-    static QString decodePixmap(QZXing &decoder, const QPixmap &src, const bool &useFastTransformation, QString &mess);
+    static QString decodePixmap(QZXing &decoder, const QPixmap &src, const bool &useFastTransformation, QString &messageStrr);
 
     static QPixmap getPagePix(const PrintImageHelper::PrintSettCache &printSett, const QString &s);
 

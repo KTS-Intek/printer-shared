@@ -66,9 +66,9 @@ QImage QrCodeGenerator::encodeImg(const QString &s, const QString &errcorr, cons
 
 bool QrCodeGenerator::canDecodeQr(QZXing &decoder, const QImage &src)
 {
-    QString mess;
-    const QString d = decodeImage(decoder, src, true, mess);
-    qDebug() << "checkdecode " << d << mess;
+    QString messageStrr;
+    const QString d = decodeImage(decoder, src, true, messageStrr);
+    qDebug() << "checkdecode " << d << messageStrr;
     return !d.isEmpty();
 }
 
@@ -83,31 +83,31 @@ QPixmap QrCodeGenerator::encode(const QString &s, const QString &errcorr, const 
 }
 
 
-QString QrCodeGenerator::decodeImage(const QImage &src, const bool &useFastTransformation, QString &mess)
+QString QrCodeGenerator::decodeImage(const QImage &src, const bool &useFastTransformation, QString &messageStrr)
 {
     QZXing decoder(QZXing::DecoderFormat_QR_CODE, 0);
     decoder.setDecoder( QZXing::DecoderFormat_QR_CODE );
-    return decodeImage(decoder, src, useFastTransformation, mess);
+    return decodeImage(decoder, src, useFastTransformation, messageStrr);
 }
 
-QString QrCodeGenerator::decodeImage(QZXing &decoder, const QImage &src, const bool &useFastTransformation, QString &mess)
+QString QrCodeGenerator::decodeImage(QZXing &decoder, const QImage &src, const bool &useFastTransformation, QString &messageStrr)
 {
     const QString s = decoder.decodeImage(src, -1, -1, !useFastTransformation );
     if(s.isEmpty())
-        mess = "no qr";// decoder.getLastError();
+        messageStrr = "no qr";// decoder.getLastError();
     return s;
 }
 
-QString QrCodeGenerator::decodePixmap(const QPixmap &src, const bool &useFastTransformation, QString &mess)
+QString QrCodeGenerator::decodePixmap(const QPixmap &src, const bool &useFastTransformation, QString &messageStrr)
 {
     QZXing decoder(QZXing::DecoderFormat_QR_CODE, 0);
     decoder.setDecoder( QZXing::DecoderFormat_QR_CODE );
-    return decodePixmap(decoder, src, useFastTransformation, mess);
+    return decodePixmap(decoder, src, useFastTransformation, messageStrr);
 }
 
-QString QrCodeGenerator::decodePixmap(QZXing &decoder, const QPixmap &src, const bool &useFastTransformation, QString &mess)
+QString QrCodeGenerator::decodePixmap(QZXing &decoder, const QPixmap &src, const bool &useFastTransformation, QString &messageStrr)
 {
-    return decodeImage(decoder, src.toImage(), useFastTransformation, mess);
+    return decodeImage(decoder, src.toImage(), useFastTransformation, messageStrr);
 }
 
 QPixmap QrCodeGenerator::getPagePix(const PrintImageHelper::PrintSettCache &printSett, const QString &s)
