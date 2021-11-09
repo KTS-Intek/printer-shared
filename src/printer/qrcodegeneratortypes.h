@@ -2,7 +2,7 @@
 #define QRCODEGENERATORTYPES_H
 
 #include <QList>
-#include <QMap>
+#include <QVariantMap>
 #include <QString>
 
 #define QR_DEVTYPE_UC   0
