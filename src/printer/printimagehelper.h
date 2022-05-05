@@ -87,9 +87,9 @@ public:
 
     static QPixmap getPixmapWithUserData(const QString &userString, const QString &userDateMask, const int &userFontPpt, const int &topMarginPx, const int &leftMarginPx, const QVariantMap &about, const qreal &rotate, QPixmap p);
 
-    static QString printPixmap(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSizeF pageSizeF, const bool &isPortrait, const QMargins &margins, const QPixmap &p);
+    static QString printPixmap(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSize pageSize, const bool &isPortrait, const QMargins &margins, const QPixmap &p);
 
-    static QString printPixmaps(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSizeF pageSizeF, const bool &isPortrait, const QMargins &margins, const QList<QPixmap> &lp);
+    static QString printPixmaps(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSize pageSize, const bool &isPortrait, const QMargins &margins, const QList<QPixmap> &lp);
 
 
 
@@ -100,12 +100,15 @@ public:
 
     static QImage makeContrastV2(const QImage &img, const int &contrast);
 
-    static QSizeF getPageSize(const int &w, const int &h, const bool &isPortrait);
+    static QSize getPageSize(const int &w, const int &h, const bool &isPortrait);
 
 
     static PrintSettCache defaultPrintSett();
 
     static PrintSettCache variantMap2printSett(const QVariantMap &m);
+
+    static PrintSettCache variantMap2printSettExt(const QVariantMap &m, const PrintSettCache &defvals);
+
 
     static QVariantMap printSett2variantMap(const PrintSettCache &printSett);
 

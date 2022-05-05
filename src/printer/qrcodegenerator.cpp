@@ -44,7 +44,11 @@ QImage QrCodeGenerator::encodeImg(const QString &s, const QString &errcorr, cons
     decoder.setDecoder( QZXing::DecoderFormat_QR_CODE );
 //    qDebug() << "encode " << errcorr << s;
 
-    const QImage srcDef = QZXing::encodeData(s, QZXing::EncoderFormat_QR_CODE, sz, correctionLevelFromLetter(errcorr));
+
+    QZXingEncoderConfig encoderConfig(QZXing::EncoderFormat_QR_CODE, sz, correctionLevelFromLetter(errcorr), false, false);
+
+
+    const QImage srcDef = QZXing::encodeData(s, encoderConfig);// QZXing::EncoderFormat_QR_CODE, sz, correctionLevelFromLetter(errcorr));
     if(canDecodeQr(decoder, srcDef))
         return srcDef;
 
@@ -54,7 +58,8 @@ QImage QrCodeGenerator::encodeImg(const QString &s, const QString &errcorr, cons
     for(int i = 0, imax = l.size(); i < imax; i++){
 //        qDebug() << "encode " << i << l.at(i) << s;
 
-        const QImage src = QZXing::encodeData(s, QZXing::EncoderFormat_QR_CODE, sz, correctionLevelFromLetter(l.at(i)));
+        encoderConfig.errorCorrectionLevel = correctionLevelFromLetter(l.at(i));
+        const QImage src = QZXing::encodeData(s, encoderConfig);// QZXing::EncoderFormat_QR_CODE, sz, correctionLevelFromLetter(l.at(i)));
         if(canDecodeQr(decoder, src))
             return src;
     }

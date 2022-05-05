@@ -122,11 +122,11 @@ QString PrintImageHelper::replaceKeysInText(QString plainText, QString dateMask,
     if(plainText.contains("$date"))
         plainText.replace("$date", QDate::currentDate().toString(dateMask));
 
-    const QStringList l = QString("$ni $eui64 $model $lcuni").split(" ", QString::SkipEmptyParts);
+    const QStringList l = QString("$ni $eui64 $model $lcuni $smplText").split(" ", QString::SkipEmptyParts);
 
     if(!about.contains("$lcuni")){
         bool ok;
-        const quint64 lcuni = about.value("$eui64").toString().right(8).toULongLong(&ok,16);
+        const quint64 lcuni = about.value("$eui64").toString().rightRef(8).toULongLong(&ok,16);
         const QString s = QString::number(lcuni, 16);
         if(ok && !s.isEmpty())
             about.insert("$lcuni", s);
@@ -328,23 +328,26 @@ QPixmap PrintImageHelper::getPixmapWithUserData(const QString &userString, const
     return p;
 }
 //------------------------------------------------------------------------------------------------
-QString PrintImageHelper::printPixmap(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSizeF pageSizeF, const bool &isPortrait, const QMargins &margins, const QPixmap &p)
+QString PrintImageHelper::printPixmap(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSize pageSize, const bool &isPortrait, const QMargins &margins, const QPixmap &p)
 {
-    return printPixmaps(printerName, pdfFileName, copies, resolutionDpi, pageSizeF, isPortrait, margins, QList<QPixmap>() << p);
+    return printPixmaps(printerName, pdfFileName, copies, resolutionDpi, pageSize, isPortrait, margins, QList<QPixmap>() << p);
 
 }
 //------------------------------------------------------------------------------------------------
-QString PrintImageHelper::printPixmaps(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSizeF pageSizeF, const bool &isPortrait, const QMargins &margins, const QList<QPixmap> &lp)
+QString PrintImageHelper::printPixmaps(const QString &printerName, const QString &pdfFileName, const int &copies, const int &resolutionDpi, const QSize pageSize, const bool &isPortrait, const QMargins &margins, const QList<QPixmap> &lp)
 {
     //QPrinter &printer
     QPrinter printer(QPrinterInfo::printerInfo(printerName), QPrinter::HighResolution); // const QString &printerName,
+//    QPrinter printer(QPrinter::HighResolution);
 
 
     printer.setFullPage(true);
-    printer.setResolution(resolutionDpi);
-    printer.setPageSize(QPageSize(pageSizeF, QPageSize::Millimeter));
+
+    printer.setPageSize(QPageSize(PrintImageHelper::getPageSize(pageSize.width(), pageSize.height(), isPortrait), QPageSize::Millimeter));
+//    printer.setPageSize(QPageSize(pageSize, QPageSize::Millimeter)); it doesn't work properly with PDF
     printer.setPageMargins(margins);
 
+    printer.setResolution(resolutionDpi);
     printer.setOrientation(isPortrait ? QPrinter::Portrait : QPrinter::Landscape);
     printer.setPageOrientation(isPortrait ? QPageLayout::Portrait : QPageLayout::Landscape);
 
@@ -363,8 +366,8 @@ QString PrintImageHelper::printPixmaps(const QString &printerName, const QString
     QPainter painter;
 
     painter.begin(&printer);
-    painter.setRenderHint(QPainter::Antialiasing, false);
-    painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
+    painter.setRenderHint(QPainter::Antialiasing, usePdfFormat);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, usePdfFormat);
 
     bool iNeedNewPage = false;
     for(int i = 0, imax = lp.size(); i < imax; i++){
@@ -376,8 +379,9 @@ QString PrintImageHelper::printPixmaps(const QString &printerName, const QString
                 printer.newPage();
             else
                 iNeedNewPage = true;
+            printer.paintEngine()->drawPixmap(p.rect(), p, p.rect() );
 
-            printer.paintEngine()->drawPixmap( QRectF(0,0,p.width(),p.height()), p, QRectF(0,0,p.width(),p.height()) );
+//            printer.paintEngine()->drawPixmap( QRectF(0,0,p.width(),p.height()), p, QRectF(0,0,p.width(),p.height()) );
 
         }
 
@@ -507,15 +511,16 @@ QImage PrintImageHelper::makeContrastV2(const QImage &img, const int &contrast)
 
 //------------------------------------------------------------------------------------------------
 
-QSizeF PrintImageHelper::getPageSize(const int &w, const int &h, const bool &isPortrait)
+QSize PrintImageHelper::getPageSize(const int &w, const int &h, const bool &isPortrait)
 {
-    return isPortrait ? QSizeF(w, h) : QSizeF(h, w);
+    return isPortrait ? QSize(w, h) : QSize(h, w);
 }
 
 //------------------------------------------------------------------------------------------------
 
 PrintImageHelper::PrintSettCache PrintImageHelper::defaultPrintSett()
 {
+    //it is good for a modem label
     PrintSettCache printSett;
     //Page
     printSett.widthMM           = 25;
@@ -561,7 +566,11 @@ PrintImageHelper::PrintSettCache PrintImageHelper::defaultPrintSett()
 
 PrintImageHelper::PrintSettCache PrintImageHelper::variantMap2printSett(const QVariantMap &m)
 {
-    const PrintSettCache defvals = defaultPrintSett();
+   return variantMap2printSettExt(m, defaultPrintSett());
+}
+
+PrintImageHelper::PrintSettCache PrintImageHelper::variantMap2printSettExt(const QVariantMap &m, const PrintSettCache &defvals)
+{
     if(m.isEmpty())
         return defvals;
 
