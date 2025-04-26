@@ -117,7 +117,7 @@ QrTableColumnMap QrGenConverter::getTableMap4dev(const int &qrDevType, const QLi
 
 QStringList QrGenConverter::getAllKeys4dev()
 {
-    return QString("model sn mac eui64 imei ni prof param type name version value").split(" ", QString::SkipEmptyParts);
+    return QString("model sn mac eui64 imei ni prof param type name version value").split(" ", Qt::SkipEmptyParts);
 }
 
 QStringList QrGenConverter::getKeys4dev(const int &qrDevType)
@@ -133,7 +133,7 @@ QStringList QrGenConverter::getKeys4dev(const int &qrDevType)
     case QR_DEVTYPE_CLBRDCONTENT: getKeys4clbrdContent(); break;
 
     }
-    return s.split(" ", QString::SkipEmptyParts);
+    return s.split(" ", Qt::SkipEmptyParts);
 }
 
 QString QrGenConverter::getKeys4uc()

@@ -1,7 +1,7 @@
 #include "printimagehelper.h"
 #include <QDate>
 #include <QFileInfo>
-#include <QMatrix>
+#include <QTransform>
 #include <QPainter>
 #include <QFont>
 #include <QImage>
@@ -122,11 +122,11 @@ QString PrintImageHelper::replaceKeysInText(QString plainText, QString dateMask,
     if(plainText.contains("$date"))
         plainText.replace("$date", QDate::currentDate().toString(dateMask));
 
-    const QStringList l = QString("$ni $eui64 $model $lcuni $smplText").split(" ", QString::SkipEmptyParts);
+    const QStringList l = QString("$ni $eui64 $model $lcuni $smplText").split(" ", Qt::SkipEmptyParts);
 
     if(!about.contains("$lcuni")){
         bool ok;
-        const quint64 lcuni = about.value("$eui64").toString().rightRef(8).toULongLong(&ok,16);
+        const quint64 lcuni = about.value("$eui64").toString().right(8).toULongLong(&ok,16);
         const QString s = QString::number(lcuni, 16);
         if(ok && !s.isEmpty())
             about.insert("$lcuni", s);
@@ -147,7 +147,7 @@ QPixmap PrintImageHelper::rotateImage(const int &rotateDeg, const QPixmap &pm)
     QImage img = pm.toImage();// p.toImage().convertToFormat(QImage::Format_Grayscale8, Qt::MonoOnly);
 
     QPoint center = img.rect().center();
-    QMatrix matrix;
+    QTransform matrix;
     matrix.translate(center.x(), center.y());
     matrix.rotate(rotateDeg);
     return QPixmap::fromImage(img.transformed(matrix));
@@ -251,7 +251,7 @@ QPixmap PrintImageHelper::convertImage(const int &imgFormat, const int &imgConvf
 QVariantMap PrintImageHelper::getMapAboutDev(const QString &euiline, const QString &euilinekeys, const QString &euilineslitsymb)
 {
     const QStringList l = euiline.split(euilineslitsymb);
-    const QStringList keys = euilinekeys.split(" ", QString::SkipEmptyParts);
+    const QStringList keys = euilinekeys.split(" ", Qt::SkipEmptyParts);
 
     QVariantMap map;
     for(int i = 0, imax = l.size(), imax2 = keys.size(); i < imax && i < imax2; i++){
@@ -348,7 +348,7 @@ QString PrintImageHelper::printPixmaps(const QString &printerName, const QString
     printer.setPageMargins(margins);
 
     printer.setResolution(resolutionDpi);
-    printer.setOrientation(isPortrait ? QPrinter::Portrait : QPrinter::Landscape);
+    // printer.setOrientation(isPortrait ? QPrinter::Portrait : QPrinter::Landscape);
     printer.setPageOrientation(isPortrait ? QPageLayout::Portrait : QPageLayout::Landscape);
 
 

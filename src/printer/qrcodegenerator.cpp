@@ -5,12 +5,12 @@
 
 QStringList QrCodeGenerator::getCorrection()
 {
-    return QString("L M Q H").split(" ", QString::SkipEmptyParts);
+    return QString("L M Q H").split(" ", Qt::SkipEmptyParts);
 }
 
 QString QrCodeGenerator::getCorrectionLetter(const int &indx)
 {
-    if(indx < 0 || indx > 3)
+    if( (indx < 0) || indx > 3)
         return getCorrection().at(2);
     return getCorrection().at(indx);
 }
